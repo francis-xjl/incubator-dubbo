@@ -510,7 +510,7 @@ public class ExtensionLoader<T> {
             Set<Class<?>> wrapperClasses = cachedWrapperClasses;
             if (wrapperClasses != null && !wrapperClasses.isEmpty()) {
                 for (Class<?> wrapperClass : wrapperClasses) {
-                    instance = injectExtension((T) wrapperClass.getConstructor(type).newInstance(instance));
+                    instance = injectExtension((T) wrapperClass.getConstructor(type).newInstance(instance)); //叠加多个装饰器至扩展点
                 }
             }
             return instance;
@@ -524,13 +524,13 @@ public class ExtensionLoader<T> {
         try {
             if (objectFactory != null) {
                 for (Method method : instance.getClass().getMethods()) {
-                    if (method.getName().startsWith("set")
+                    if (method.getName().startsWith("set")  // 通过set方法注入需要的扩展点
                             && method.getParameterTypes().length == 1
                             && Modifier.isPublic(method.getModifiers())) {
                         Class<?> pt = method.getParameterTypes()[0];
                         try {
                             String property = method.getName().length() > 3 ? method.getName().substring(3, 4).toLowerCase() + method.getName().substring(4) : "";
-                            Object object = objectFactory.getExtension(pt, property);
+                            Object object = objectFactory.getExtension(pt, property); //获取要注入的扩展点
                             if (object != null) {
                                 method.invoke(instance, object);
                             }
@@ -579,11 +579,11 @@ public class ExtensionLoader<T> {
             String value = defaultAnnotation.value();
             if ((value = value.trim()).length() > 0) {
                 String[] names = NAME_SEPARATOR.split(value);
-                if (names.length > 1) {
+                if (names.length > 1) { // 默认配置名只能有一个
                     throw new IllegalStateException("more than 1 default extension name on extension " + type.getName()
                             + ": " + Arrays.toString(names));
                 }
-                if (names.length == 1) cachedDefaultName = names[0];
+                if (names.length == 1) cachedDefaultName = names[0];// 设置全局的默认名称
             }
         }
 
@@ -661,14 +661,14 @@ public class ExtensionLoader<T> {
                     + clazz.getName() + "is not subtype of interface.");
         }
         if (clazz.isAnnotationPresent(Adaptive.class)) {
-            if (cachedAdaptiveClass == null) {
+            if (cachedAdaptiveClass == null) { // 根据type扫描时，发现有Adaptive的类，则立即加入缓存，以该类为优先
                 cachedAdaptiveClass = clazz;
-            } else if (!cachedAdaptiveClass.equals(clazz)) {
+            } else if (!cachedAdaptiveClass.equals(clazz)) { // 同一个扩展点只能有一个默认适配。
                 throw new IllegalStateException("More than 1 adaptive class found: "
                         + cachedAdaptiveClass.getClass().getName()
                         + ", " + clazz.getClass().getName());
             }
-        } else if (isWrapperClass(clazz)) {
+        } else if (isWrapperClass(clazz)) { //判断是否包装类
             Set<Class<?>> wrappers = cachedWrapperClasses;
             if (wrappers == null) {
                 cachedWrapperClasses = new ConcurrentHashSet<Class<?>>();
@@ -686,7 +686,7 @@ public class ExtensionLoader<T> {
             String[] names = NAME_SEPARATOR.split(name);
             if (names != null && names.length > 0) {
                 Activate activate = clazz.getAnnotation(Activate.class);
-                if (activate != null) {
+                if (activate != null) { //如果类上有Activate注解，则加入cache
                     cachedActivates.put(names[0], activate);
                 } else {
                     // support com.alibaba.dubbo.common.extension.Activate
@@ -744,9 +744,9 @@ public class ExtensionLoader<T> {
     private Class<?> getAdaptiveExtensionClass() {
         getExtensionClasses();
         if (cachedAdaptiveClass != null) {
-            return cachedAdaptiveClass;// 如果配置文件里面定义了，则直接返回配置文件中的类
+            return cachedAdaptiveClass;// 如果配置文件里可以扫到Adapter注解的扩展点，则直接返回配置文件中的类
         }
-        return cachedAdaptiveClass = createAdaptiveExtensionClass();// 如果没有定义，则创建一个默认实现
+        return cachedAdaptiveClass = createAdaptiveExtensionClass();// 如果没有定义，则动态创建一个默认实现
     }
 
     private Class<?> createAdaptiveExtensionClass() {
@@ -761,7 +761,7 @@ public class ExtensionLoader<T> {
         Method[] methods = type.getMethods();
         boolean hasAdaptiveAnnotation = false;
         for (Method m : methods) {
-            if (m.isAnnotationPresent(Adaptive.class)) {
+            if (m.isAnnotationPresent(Adaptive.class)) { //至少有一个Adaptive注解的方法[前提类上没有]
                 hasAdaptiveAnnotation = true;
                 break;
             }
@@ -884,7 +884,7 @@ public class ExtensionLoader<T> {
                                 if (hasInvocation)
                                     getNameCode = String.format("url.getMethodParameter(methodName, \"%s\", \"%s\")", value[i], defaultExtName);
                                 else
-                                    getNameCode = String.format("url.getParameter(\"%s\", \"%s\")", value[i], defaultExtName);
+                                    getNameCode = String.format("url.getParameter(\"%s\", \"%s\")", value[i], defaultExtName);//从URL里获取，如果没有，则使用默认值。
                             else
                                 getNameCode = String.format("( url.getProtocol() == null ? \"%s\" : url.getProtocol() )", defaultExtName);
                         } else {
