@@ -451,12 +451,12 @@ public class ExtensionLoader<T> {
             if (createAdaptiveInstanceError == null) {
                 synchronized (cachedAdaptiveInstance) {
                     instance = cachedAdaptiveInstance.get();
-                    if (instance == null) {
+                    if (instance == null) {// 双重检测
                         try {
                             instance = createAdaptiveExtension();
                             cachedAdaptiveInstance.set(instance);
                         } catch (Throwable t) {
-                            createAdaptiveInstanceError = t;
+                            createAdaptiveInstanceError = t; // 循环依赖创建时，出现错误，则抛出异常。
                             throw new IllegalStateException("fail to create adaptive instance: " + t.toString(), t);
                         }
                     }
@@ -563,7 +563,7 @@ public class ExtensionLoader<T> {
         if (classes == null) {
             synchronized (cachedClasses) {
                 classes = cachedClasses.get();
-                if (classes == null) {
+                if (classes == null) { // 双重检测
                     classes = loadExtensionClasses();
                     cachedClasses.set(classes);
                 }
@@ -744,9 +744,9 @@ public class ExtensionLoader<T> {
     private Class<?> getAdaptiveExtensionClass() {
         getExtensionClasses();
         if (cachedAdaptiveClass != null) {
-            return cachedAdaptiveClass;
+            return cachedAdaptiveClass;// 如果配置文件里面定义了，则直接返回配置文件中的类
         }
-        return cachedAdaptiveClass = createAdaptiveExtensionClass();
+        return cachedAdaptiveClass = createAdaptiveExtensionClass();// 如果没有定义，则创建一个默认实现
     }
 
     private Class<?> createAdaptiveExtensionClass() {
